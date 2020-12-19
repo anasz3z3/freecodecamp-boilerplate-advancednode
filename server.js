@@ -45,10 +45,13 @@ myDB(async client => {
   // Be sure to change the title
   
   app.route('/').get((req, res) => {
-  res.render('pug',{title: 'Connected to Database', message: 'Please login',showLogin: true} );
-});
+    res.render('pug',
+    { title: 'Connected to Database', 
+      message: 'Please login',
+      showLogin: true} );
+    });
 
-  
+  //});
   /*
   app.post('/login', 
   passport.authenticate('local', { failureRedirect: '/login' }),
@@ -58,26 +61,37 @@ myDB(async client => {
   */
   // Serialization and deserialization here...
   passport.serializeUser((user, done) => {
-  done(null, user._id);
-});
-
-passport.deserializeUser((id, done) => {
-  myDataBase.findOne({ _id: new ObjectID(id) }, (err, doc) => {
-    done(null, doc);
+    done(null, user._id);
   });
 
+  passport.deserializeUser((id, done) => {
+    myDataBase.findOne({ _id: new ObjectID(id) }, (err, doc) => {
+    done(null, doc);
+    });
+  });
 
 
  
   app.route('/login')
-          .post(passport.authenticate('local', { failureRedirect: '/' }),(req,res) => {
+    .post(passport.authenticate('local', { failureRedirect: '/' }),
+    (req,res) => {
                res.redirect('/profile');
-          });
+  });
           
-}); 
+ 
+  app.route('/logout')
+  .get((req, res) => {
+    req.logout();
+    res.redirect('/');
+  });
 
+  app.use((req, res, next) => {
+  res.status(404)
+    .type('text')
+    .send('Not Found');
+  });
   passport.use(new LocalStrategy(
-  function(username, password, done) {
+   function(username, password, done) {
     myDataBase.findOne({ username: username }, function (err, user) {
       console.log('User '+ username +' attempted to log in.');
       if (err) { return done(err); }
@@ -85,16 +99,29 @@ passport.deserializeUser((id, done) => {
       if (password !== user.password) { return done(null, false); }
       return done(null, user);
     });
-  }
-));
+   }
+  )); 
 
 
+  app
+  .route('/profile')
+  .get(ensureAuthenticated, (req,res) => {
+      res.render(process.cwd() + '/views/pug/profile',{username:req.user.username});
+  });
+  
+  function ensureAuthenticated(req, res, next) {
+    if (req.isAuthenticated()) {
+      return next();
+    }
+    res.redirect('/');
+  };
   // Be sure to add this...
 }).catch(e => {
   app.route('/').get((req, res) => {
     res.render('pug', { title: e, message: 'Unable to login' });
   });
-});
+ });
+
 
 app.listen(process.env.PORT || 3000, () => {
   console.log('Listening on port ' + process.env.PORT);
